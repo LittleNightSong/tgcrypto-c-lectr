@@ -70,9 +70,17 @@ jobs:
         uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
 
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel[uv]==4.2.0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4

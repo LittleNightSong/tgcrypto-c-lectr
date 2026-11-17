@@ -44,6 +44,12 @@ jobs:
       - name: Install cibuildwheel and uv
         run: python -m pip install cibuildwheel[uv]==4.2.0
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
