@@ -50,8 +50,8 @@ jobs:
       # Used to host cibuildwheel
       - uses: actions/setup-python@v6
 
-      - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==4.2.0
+      - name: Install cibuildwheel and uv
+        run: python -m pip install cibuildwheel[uv]==4.2.0
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
