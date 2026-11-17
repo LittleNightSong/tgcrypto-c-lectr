@@ -738,7 +738,7 @@ static struct PyModuleDef module = {
     methods
 };
 
-PyMODINIT_FUNC PyInit_tgcrypto(void) {
+PyMODINIT_FUNC PyInit_tgcrypto_lectr(void) {
     PyObject *m = PyModule_Create(&module);
 
     if (m == NULL)
