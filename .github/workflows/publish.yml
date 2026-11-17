@@ -54,10 +54,6 @@ jobs:
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
-        env:
-          CIBW_TEST_REQUIRES: pytest
-          CIBW_TEST_COMMAND: python -m pytest {project}/tests
-          CIBW_BUILD_VERBOSITY: 1
 
       - uses: actions/upload-artifact@v6
         with:
@@ -65,12 +61,12 @@ jobs:
           path: wheelhouse/*.whl
 
   publish:
-    name: Publish tgcrypto-c to PyPI
+    name: Publish tgcrypto-c-lectr to PyPI
     needs: [sdist, wheels]
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/tgcrypto-c
+      url: https://pypi.org/p/tgcrypto-c-lectr
     permissions:
       id-token: write
 

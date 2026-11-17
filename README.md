@@ -1,17 +1,24 @@
-# TgCrypto-C
+# TgCrypto-C-Little-Endian-Counter
 
-**TgCrypto-C** is a maintained, drop-in replacement for `tgcrypto`
+**TgCrypto-C-lectr** is a maintained, drop-in replacement for `tgcrypto`
 ([pyrogram/tgcrypto](https://github.com/pyrogram/tgcrypto)): a fast AES-256
 cryptography library written in C as a Python extension. It implements the three
 algorithms Telegram clients need, with AES-NI hardware acceleration and reusable
 streaming contexts.
 
-- **Package name:** `tgcrypto-c` on [PyPI](https://pypi.org/project/tgcrypto-c/)
+> [!IMPORTANT]  
+> **Why use this fork?**  
+> The original `tgcrypto` uses a Big-Endian counter in CTR mode. This fork (`tgcrypto-c-lectr`) modifies the underlying C code to use a **Little-Endian (LE) counter** for CTR mode. If you are working with a protocol implementation, specific client variation, or custom infrastructure that strictly requires LE counters, this fork is for you. 
+>
+> **Note on API compatibility:** The Python API (function names, context classes, arguments) remains a drop-in replacement, but **CTR encryption results will intentionally differ** from the original by design.
+
+- **Package name:** `tgcrypto-c-lectr` on [PyPI](https://pypi.org/project/tgcrypto-c-lectr/)
 - **Import name:** `tgcrypto` (unchanged, so existing code keeps working)
 - **Use with:** [Pyrogram](https://github.com/pyrogram/pyrogram) and
-  [Kurigram](https://kurigram.icu/)
-- **Python:** 3.9–3.15
-- **Platforms:** Linux (x86_64, ARM64), macOS (Intel, Apple Silicon), Windows (AMD64)
+  [Kurigram](https://github.com/kurigram/kurigram)
+- **Python (desktop):** 3.12 – 3.14
+- **Python (Android):** 3.13 – 3.14
+- **Platforms:** Windows (NT), Linux, macOS, Android
 
 It implements the cryptographic algorithms Telegram requires:
 
@@ -20,33 +27,34 @@ It implements the cryptographic algorithms Telegram requires:
 - **`AES-256-CBC`** - used for [encrypted passport credentials](https://core.telegram.org/passport).
 
 Migrating from `tgcrypto` requires no code change: the six original functions
-keep their exact names, argument order, return types and validation behaviour,
-and the cryptographic output is bit-for-bit identical.
+keep their exact names, argument order, return types and validation behaviour.
+For IGE and CBC modes, the cryptographic output is bit-for-bit identical. However, due to the intentional Little-Endian counter modification, **CTR mode output will differ** from the original.
 
 > [!NOTE]
 > The implementations of the algorithms presented in this repository are to be considered for educational purposes only.
 
 ## Requirements
 
-- Python 3.9 or higher.
+- **Desktop (Windows NT, Linux, macOS):** Python 3.12 – 3.14.
+- **Android:** Python 3.13 – 3.14.
 - A C compiler (the extension is compiled from source when no wheel is
   available for your platform).
 
 ## Installation
 
-Prebuilt wheels for Linux, macOS and Windows are published on
-[PyPI](https://pypi.org/project/tgcrypto-c/).
+Prebuilt wheels for Windows (NT), Linux, macOS and Android are published on
+[PyPI](https://pypi.org/project/tgcrypto-c-lectr/).
 
 ### pip
 
 ``` bash
-$ pip install tgcrypto-c
+$ pip install tgcrypto-c-lectr
 ```
 
 or, equivalently, the explicit module form:
 
 ``` bash
-$ python -m pip install -U tgcrypto-c
+$ python -m pip install -U tgcrypto-c-lectr
 ```
 
 ### uv
@@ -54,16 +62,16 @@ $ python -m pip install -U tgcrypto-c
 Add it to your project (updates `pyproject.toml` and the lockfile):
 
 ``` bash
-$ uv add tgcrypto-c
+$ uv add tgcrypto-c-lectr
 ```
 
 Or install it into the active virtual environment, pip-style:
 
 ``` bash
-$ uv pip install tgcrypto-c
+$ uv pip install tgcrypto-c-lectr
 ```
 
-The distribution is named `tgcrypto-c`; existing code continues to use the
+The distribution is named `tgcrypto-c-lectr`; existing code continues to use the
 `tgcrypto` import, so no source changes are needed:
 
 ``` python
@@ -73,7 +81,7 @@ import tgcrypto
 To install directly from source:
 
 ``` bash
-$ pip install -U git+https://github.com/bisug/tgcrypto-c
+$ pip install -U git+https://github.com/LittleNightSong/tgcrypto-c-lectr
 ```
 
 ## Performance
@@ -100,7 +108,7 @@ To build without the hardware acceleration path, define `TGCRYPTO_NO_AESNI`.
 Note that setting `CFLAGS` replaces the compiler's default flags, so keep `-O2`:
 
 ``` bash
-$ CFLAGS="-DTGCRYPTO_NO_AESNI -O2" pip3 install git+https://github.com/bisug/tgcrypto-c
+$ CFLAGS="-DTGCRYPTO_NO_AESNI -O2" pip3 install git+https://github.com/LittleNightSong/tgcrypto-c-lectr
 ```
 
 Passing heavier flags through `CFLAGS` is possible, but measurements on the
@@ -108,7 +116,7 @@ reference machine showed no consistent gain from `-O3 -flto` over the default
 build, so it is left out:
 
 ``` bash
-$ CFLAGS="-O3 -flto" pip3 install git+https://github.com/bisug/tgcrypto-c
+$ CFLAGS="-O3 -flto" pip3 install git+https://github.com/LittleNightSong/tgcrypto-c-lectr
 ```
 
 Benchmark before adopting any such flags; the default build is already the
@@ -195,14 +203,14 @@ test machine because memory bandwidth becomes the limit.
 | | Original ([pyrogram/tgcrypto](https://github.com/pyrogram/tgcrypto)) | This fork |
 |---|---|---|
 | Status | Unmaintained | Actively maintained |
-| Python support | 3.7 – 3.11 | **3.9 – 3.15** |
+| Python support | 3.7 – 3.11 | **Desktop: 3.12 – 3.14; Android: 3.13 – 3.14** |
 | Packaging | `setup.py` | `pyproject.toml` (PEP 621) |
 | AES acceleration | Portable software implementation only | **AES-NI hardware acceleration** (runtime-detected) with software fallback |
 | Speed without AES-NI / non-x86 | Baseline | Identical (same software code path, bit-for-bit) |
-| Output compatibility | — | Cryptographic output is **bit-for-bit identical** to the original |
+| Output compatibility | — | IGE/CBC outputs are identical. **CTR mode is intentionally different (Little-Endian counter).** |
 | API | Six functions | **Unchanged** — drop-in compatible with Pyrogram and Kurigram |
 | Extras | — | Reusable streaming contexts, type stubs |
-| CI | — | Test matrix 3.9–3.15; wheels for Linux (x86_64, ARM64), macOS (Intel, Apple Silicon) and Windows (AMD64) |
+| CI | — | Test matrix 3.12–3.14 (desktop), 3.13–3.14 (Android); wheels for Windows (NT), Linux, macOS and Android |
 | License | LGPLv3+ | LGPLv3+ |
 
 Upstream ships a software-only build, so the AES-NI path is what separates the
@@ -227,7 +235,6 @@ changes to the algorithms:
 | AES-256-IGE encrypt | 101 MB/s | 103 MB/s |
 | AES-256-CTR encrypt | 83 MB/s | 83 MB/s |
 | AES-256-CBC encrypt | 102 MB/s | 109 MB/s |
-
 
 ## API
 
@@ -267,7 +274,9 @@ class CBCContext:
 `CTRContext.update()` is equivalent to repeated `ctr256_encrypt()` calls and
 retains the counter internally. It can also decrypt, because CTR encryption
 and decryption are the same XOR operation. A context is stateful and should
-not be used concurrently from multiple threads.
+not be used concurrently from multiple threads. 
+
+> **Note:** This fork uses a Little-Endian increment for the counter state, diverging from the standard Big-Endian behavior of the upstream `tgcrypto`.
 
 `IGEContext` and `CBCContext` retain their mode feedback between updates. Their
 input chunks must be non-empty and aligned to the 16-byte AES block size. Set
@@ -414,36 +423,38 @@ not here. `ige256_decrypt` does not verify `msg_key`; callers must.
 
 ## FAQ
 
-### What is the difference between `tgcrypto-c`, `tgcrypto` and `TgCryptoRust`?
+### What is the difference between `tgcrypto-c-lectr`, `tgcrypto` and `TgCryptoRust`?
 
 All three expose the same six functions under the `tgcrypto` import.
-`tgcrypto` (the original) is unmaintained and software-only. `tgcrypto-c` is
+`tgcrypto` (the original) is unmaintained and software-only. `tgcrypto-c-lectr` is
 this project: the same C implementation plus AES-NI acceleration, reusable
-streaming contexts, and current Python and platform support. `TgCryptoRust` is
-an independent Rust reimplementation.
+streaming contexts, and current Python and platform support. It also changes the CTR counter to Little-Endian. `TgCryptoRust` is an independent Rust reimplementation.
 
 Install only one of them. They all provide the `tgcrypto` module, so having two
 installed at once gives a conflict:
 
 ``` bash
 $ pip uninstall tgcrypto TgCryptoRust
-$ pip install tgcrypto-c
+$ pip install tgcrypto-c-lectr
 ```
 
 ### Is it a drop-in replacement? Do I need to change my code?
 
 No code changes. The six original functions keep their names, argument order,
-return types and validation behaviour, and produce bit-for-bit identical
-ciphertext. Existing `import tgcrypto` statements keep working.
+return types and validation behaviour. For IGE and CBC modes, they produce bit-for-bit identical ciphertext. The CTR mode uses a Little-Endian counter (unlike the original Big-Endian implementation), so its output intentionally differs. Existing `import tgcrypto` statements keep working.
 
 ### Which Python versions are supported?
 
-Python 3.9 through 3.15, including free-threaded builds (3.14t, 3.15t).
+Desktop (Windows NT, Linux, macOS): Python 3.12 through 3.14.
+
+Android: Python 3.13 through 3.14.
+
+Free-threaded builds are supported on the corresponding Python versions.
 
 ### Which platforms have prebuilt wheels?
 
-Linux (x86_64, ARM64), macOS (Intel and Apple Silicon) and Windows (AMD64 and
-32-bit). Wheels are built and tested on each platform.
+Windows (NT), Linux, macOS and Android. Wheels are built and tested on each
+platform.
 
 ### Why is it faster than the original `tgcrypto`?
 
@@ -484,7 +495,7 @@ channels. See [Security notes](#security-notes).
 ### How do I report a bug or ask a question?
 
 Open an issue at
-<https://github.com/bisug/tgcrypto-c/issues>.
+<https://github.com/LittleNightSong/tgcrypto-c-lectr/issues>.
 
 ## Security notes
 
@@ -500,50 +511,20 @@ Open an issue at
 
 ## Testing
 
-1. Clone this repository: `git clone https://github.com/bisug/tgcrypto-c`.
-2. Enter the directory: `cd tgcrypto-c`.
+> [!WARNING]
+> Old tests are now unavailable.
+
+1. Clone this repository: `git clone https://github.com/LittleNightSong/tgcrypto-c-lectr`.
+2. Enter the directory: `cd tgcrypto-c-lectr`.
 3. Install the test dependencies: `pip3 install pytest pycryptodome cryptography`
    (`pycryptodome`/`cryptography` are used as independent reference primitives by
    the known-answer tests; without them those tests skip silently.)
 4. Run tests: `pytest`.
 
-## Changelog
-
-### 1.3.2
-
-* **Faster small-message calls.** All functions and `update` methods now use
-  `METH_FASTCALL` instead of `METH_VARARGS`, avoiding tuple allocation on every
-  call. The GIL is only released for payloads of 8 KiB or more, so small
-  messages run with lower latency. `CTRContext.update` on 16-byte messages is
-  now ~171 ns (was ~329 ns), about 5.2x faster than the one-shot function.
-* **Faster bulk CTR.** The four CTR blocks are now encrypted round-by-round so
-  AESENC latency overlaps across blocks, about 20% faster at 1 MiB
-  (1572 MB/s one-shot, 1665 MB/s context on the reference machine).
-* No API or output changes; ciphertext remains bit-for-bit identical.
-
-### 1.3.1
-
-* **Fix a memory-alignment bug in the AES-NI key schedule.** `tgcrypto_aes_context`
-  stored its round keys as `__m128i`, which requires 16-byte alignment, but it is
-  embedded in a Python object and CPython's allocator only guarantees 8-byte
-  alignment on 32-bit targets. The compiler was therefore free to emit aligned
-  16-byte moves that wrote past the allocation. Round keys are now held as bytes
-  and loaded with unaligned accesses, so the context has no alignment
-  requirement. This crashed with an access violation (`0xC0000005`) on 32-bit
-  Windows and was latent undefined behaviour on every platform.
-* Build wheels for Linux (x86_64, ARM64), macOS (Intel, Apple Silicon) and
-  Windows (AMD64 and 32-bit).
-
-### 1.3.0
-
-* Add reusable streaming contexts: `CTRContext`, `IGEContext` and `CBCContext`.
-  They expand the key once and keep the chaining state between calls, which is
-  roughly 3x faster than the one-shot functions on 16-byte messages.
-* Add type stubs (`tgcrypto.pyi`) and `Typing :: Typed`.
-* Publish as `tgcrypto-c` on PyPI; the `tgcrypto` import is unchanged.
-
 ## License
 
 [LGPLv3+](COPYING.lesser) © 2017-present [Dan](https://github.com/delivrance)
 
-Modifications in this fork are released under the same license.
+Maintained fork based on the original work by Dan (Pyrogram). Modifications in this fork are released under the same license.
+
+**Modifications in this fork:** Copyright © 2025-present [LittleNightSong](mailto:LittleNightSongYO@outlook.com)
