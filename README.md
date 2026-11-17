@@ -6,11 +6,14 @@ cryptography library written in C as a Python extension. It implements the three
 algorithms Telegram clients need, with AES-NI hardware acceleration and reusable
 streaming contexts.
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > **Why use this fork?**  
-> The original `tgcrypto` uses a Big-Endian counter in CTR mode. This fork (`tgcrypto-c-lectr`) modifies the underlying C code to use a **Little-Endian (LE) counter** for CTR mode. If you are working with a protocol implementation, specific client variation, or custom infrastructure that strictly requires LE counters, this fork is for you. 
+> The original `tgcrypto` uses a Big-Endian counter in CTR mode. This fork (`tgcrypto-c-lectr`) modifies the underlying
+C code to use a **Little-Endian (LE) counter** for CTR mode. If you are working with a protocol implementation, specific
+client variation, or custom infrastructure that strictly requires LE counters, this fork is for you.
 >
-> **Note on API compatibility:** The Python API (function names, context classes, arguments) remains a drop-in replacement, but **CTR encryption results will intentionally differ** from the original by design.
+> **Note on API compatibility:** The Python API (function names, context classes, arguments) remains a drop-in
+> replacement, but **CTR encryption results will intentionally differ** from the original by design.
 
 - **Package name:** `tgcrypto-c-lectr` on [PyPI](https://pypi.org/project/tgcrypto-c-lectr/)
 - **Import name:** `tgcrypto` (unchanged, so existing code keeps working)
@@ -28,7 +31,8 @@ It implements the cryptographic algorithms Telegram requires:
 
 Migrating from `tgcrypto` requires no code change: the six original functions
 keep their exact names, argument order, return types and validation behaviour.
-For IGE and CBC modes, the cryptographic output is bit-for-bit identical. However, due to the intentional Little-Endian counter modification, **CTR mode output will differ** from the original.
+For IGE and CBC modes, the cryptographic output is bit-for-bit identical. However, due to the intentional Little-Endian
+counter modification, **CTR mode output will differ** from the original.
 
 > [!NOTE]
 > The implementations of the algorithms presented in this repository are to be considered for educational purposes only.
@@ -123,8 +127,8 @@ Benchmark before adopting any such flags; the default build is already the
 fast path on AES-NI hardware.
 
 Note the portable table-based AES implementation is functionally correct but
-not hardened against cache-timing side channels; the AES-NI path
-(constant-time instructions, used automatically when available) is preferred.
+not hardened against cache-timing side channels; the AES-NI path (constant-time instructions, used automatically when
+available) is preferred.
 
 ### Small-message cost
 
@@ -152,8 +156,8 @@ that fixed cost:
   For smaller buffers the release/acquire cost exceeds the AES work, so the
   call runs with the GIL held for lower latency. Large payloads still release
   the GIL and scale across Python threads.
-* **CTR round interleaving** — the four CTR blocks are encrypted round-by-round
-  (round 1 for all four, then round 2, …) so AESENC latency overlaps across
+* **CTR round interleaving** — the four CTR blocks are encrypted round-by-round (round 1 for all four, then round 2, …)
+  so AESENC latency overlaps across
   blocks instead of stalling on one block's dependency chain (~20% faster
   bulk CTR).
 
@@ -166,19 +170,19 @@ and these numbers have not been verified there.
 
 1 MiB throughput, one-shot functions versus reusable contexts:
 
-| Mode | One-shot | Context |
-|---|---:|---:|
-| AES-256-IGE encrypt | 670 MB/s | 680 MB/s |
-| AES-256-CBC encrypt | 674 MB/s | 678 MB/s |
+| Mode                |  One-shot |       Context |
+|---------------------|----------:|--------------:|
+| AES-256-IGE encrypt |  670 MB/s |      680 MB/s |
+| AES-256-CBC encrypt |  674 MB/s |      678 MB/s |
 | AES-256-CTR encrypt | 1572 MB/s | **1665 MB/s** |
 
 16-byte calls, where the key schedule dominates:
 
-| Call | Time |
-|---|---:|
-| `ige256_encrypt` | 685 ns |
-| `cbc256_encrypt` | 723 ns |
-| `ctr256_encrypt` | 881 ns |
+| Call                |       Time |
+|---------------------|-----------:|
+| `ige256_encrypt`    |     685 ns |
+| `cbc256_encrypt`    |     723 ns |
+| `ctr256_encrypt`    |     881 ns |
 | `CTRContext.update` | **171 ns** |
 
 A reusable context is therefore ~5.2x faster than the one-shot function for
@@ -188,11 +192,11 @@ throughput dominates.
 Thread scaling (1 MiB, 4 CPUs). Large mode calls release the GIL, so each
 thread runs its own buffer concurrently:
 
-| Mode | 1 thread | 2 threads | 4 threads |
-|---|---:|---:|---:|
-| CTR | 1564 MB/s | 3116 MB/s (1.99x) | 4652 MB/s (2.97x) |
-| IGE | 648 MB/s | 1213 MB/s (1.87x) | 2429 MB/s (3.75x) |
-| CBC | 670 MB/s | 1257 MB/s (1.88x) | 1720 MB/s (2.57x) |
+| Mode |  1 thread |         2 threads |         4 threads |
+|------|----------:|------------------:|------------------:|
+| CTR  | 1564 MB/s | 3116 MB/s (1.99x) | 4652 MB/s (2.97x) |
+| IGE  |  648 MB/s | 1213 MB/s (1.87x) | 2429 MB/s (3.75x) |
+| CBC  |  670 MB/s | 1257 MB/s (1.88x) | 1720 MB/s (2.57x) |
 
 Even IGE scales: its chaining is serial *within* a call, but separate calls are
 independent. Beyond 2 threads the returns flatten on this 4-core, low-power
@@ -200,28 +204,28 @@ test machine because memory bandwidth becomes the limit.
 
 ## Comparison with the original
 
-| | Original ([pyrogram/tgcrypto](https://github.com/pyrogram/tgcrypto)) | This fork |
-|---|---|---|
-| Status | Unmaintained | Actively maintained |
-| Python support | 3.7 – 3.11 | **Desktop: 3.12 – 3.14; Android: 3.13 – 3.14** |
-| Packaging | `setup.py` | `pyproject.toml` (PEP 621) |
-| AES acceleration | Portable software implementation only | **AES-NI hardware acceleration** (runtime-detected) with software fallback |
-| Speed without AES-NI / non-x86 | Baseline | Identical (same software code path, bit-for-bit) |
-| Output compatibility | — | IGE/CBC outputs are identical. **CTR mode is intentionally different (Little-Endian counter).** |
-| API | Six functions | **Unchanged** — drop-in compatible with Pyrogram and Kurigram |
-| Extras | — | Reusable streaming contexts, type stubs |
-| CI | — | Test matrix 3.12–3.14 (desktop), 3.13–3.14 (Android); wheels for Windows (NT), Linux, macOS and Android |
-| License | LGPLv3+ | LGPLv3+ |
+|                                | Original ([pyrogram/tgcrypto](https://github.com/pyrogram/tgcrypto)) | This fork                                                                                               |
+|--------------------------------|----------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| Status                         | Unmaintained                                                         | Actively maintained                                                                                     |
+| Python support                 | 3.7 – 3.11                                                           | **Desktop: 3.12 – 3.14; Android: 3.13 – 3.14**                                                          |
+| Packaging                      | `setup.py`                                                           | `pyproject.toml` (PEP 621)                                                                              |
+| AES acceleration               | Portable software implementation only                                | **AES-NI hardware acceleration** (runtime-detected) with software fallback                              |
+| Speed without AES-NI / non-x86 | Baseline                                                             | Identical (same software code path, bit-for-bit)                                                        |
+| Output compatibility           | —                                                                    | IGE/CBC outputs are identical. **CTR mode is intentionally different (Little-Endian counter).**         |
+| API                            | Six functions                                                        | **Unchanged** — drop-in compatible with Pyrogram and Kurigram                                           |
+| Extras                         | —                                                                    | Reusable streaming contexts, type stubs                                                                 |
+| CI                             | —                                                                    | Test matrix 3.12–3.14 (desktop), 3.13–3.14 (Android); wheels for Windows (NT), Linux, macOS and Android |
+| License                        | LGPLv3+                                                              | LGPLv3+                                                                                                 |
 
 Upstream ships a software-only build, so the AES-NI path is what separates the
 two. Measured on the same machine, same interpreter, same buffers (1 MiB,
 best of 7, alternating runs):
 
-| Operation | Original | This fork | Difference |
-|---|---:|---:|---:|
-| AES-256-IGE encrypt | 101 MB/s | 670 MB/s | ~6.6x |
-| AES-256-CTR encrypt | 84 MB/s | 1572 MB/s | ~18.7x |
-| AES-256-CBC encrypt | 101 MB/s | 674 MB/s | ~6.7x |
+| Operation           | Original | This fork | Difference |
+|---------------------|---------:|----------:|-----------:|
+| AES-256-IGE encrypt | 101 MB/s |  670 MB/s |      ~6.6x |
+| AES-256-CTR encrypt |  84 MB/s | 1572 MB/s |     ~18.7x |
+| AES-256-CBC encrypt | 101 MB/s |  674 MB/s |      ~6.7x |
 
 The speedup varies by mode because the two implementations have different
 per-block costs. Encryption and decryption are equally affected.
@@ -230,11 +234,11 @@ When built with `TGCRYPTO_NO_AESNI`, this fork matches the original almost
 exactly, confirming that the gain comes from the hardware path and not from
 changes to the algorithms:
 
-| Operation | Original | This fork (no AES-NI) |
-|---|---:|---:|
-| AES-256-IGE encrypt | 101 MB/s | 103 MB/s |
-| AES-256-CTR encrypt | 83 MB/s | 83 MB/s |
-| AES-256-CBC encrypt | 102 MB/s | 109 MB/s |
+| Operation           | Original | This fork (no AES-NI) |
+|---------------------|---------:|----------------------:|
+| AES-256-IGE encrypt | 101 MB/s |              103 MB/s |
+| AES-256-CTR encrypt |  83 MB/s |               83 MB/s |
+| AES-256-CBC encrypt | 102 MB/s |              109 MB/s |
 
 ## API
 
@@ -243,25 +247,39 @@ are also available for stateful workloads:
 
 ```python
 def ige256_encrypt(data: bytes, key: bytes, iv: bytes) -> bytes: ...
+
+
 def ige256_decrypt(data: bytes, key: bytes, iv: bytes) -> bytes: ...
 
+
 def ctr256_encrypt(data: bytes, key: bytes, iv: bytearray, state: bytearray) -> bytes: ...
+
+
 def ctr256_decrypt(data: bytes, key: bytes, iv: bytearray, state: bytearray) -> bytes: ...
 
+
 def cbc256_encrypt(data: bytes, key: bytes, iv: bytearray) -> bytes: ...
+
+
 def cbc256_decrypt(data: bytes, key: bytes, iv: bytearray) -> bytes: ...
 
+
 class CTRContext:
-  def __init__(self, key: bytes, iv: bytes, state: int = 0) -> None: ...
-  def update(self, data: bytes) -> bytes: ...
+    def __init__(self, key: bytes, iv: bytes, state: int = 0) -> None: ...
+
+    def update(self, data: bytes) -> bytes: ...
+
 
 class IGEContext:
-  def __init__(self, key: bytes, iv: bytes, decrypt: bool = False) -> None: ...
-  def update(self, data: bytes) -> bytes: ...
+    def __init__(self, key: bytes, iv: bytes, decrypt: bool = False) -> None: ...
+
+    def update(self, data: bytes) -> bytes: ...
+
 
 class CBCContext:
-  def __init__(self, key: bytes, iv: bytes, decrypt: bool = False) -> None: ...
-  def update(self, data: bytes) -> bytes: ...
+    def __init__(self, key: bytes, iv: bytes, decrypt: bool = False) -> None: ...
+
+    def update(self, data: bytes) -> bytes: ...
 ```
 
 > **Buffer semantics (MTProto streaming):** `ige256_*` copies the 32-byte IV
@@ -274,9 +292,10 @@ class CBCContext:
 `CTRContext.update()` is equivalent to repeated `ctr256_encrypt()` calls and
 retains the counter internally. It can also decrypt, because CTR encryption
 and decryption are the same XOR operation. A context is stateful and should
-not be used concurrently from multiple threads. 
+not be used concurrently from multiple threads.
 
-> **Note:** This fork uses a Little-Endian increment for the counter state, diverging from the standard Big-Endian behavior of the upstream `tgcrypto`.
+> **Note:** This fork uses a Little-Endian increment for the counter state, diverging from the standard Big-Endian
+> behavior of the upstream `tgcrypto`.
 
 `IGEContext` and `CBCContext` retain their mode feedback between updates. Their
 input chunks must be non-empty and aligned to the 16-byte AES block size. Set
@@ -305,7 +324,7 @@ ige_decrypted = tgcrypto.ige256_decrypt(ige_encrypted, key, iv)
 
 print(data == ige_decrypted)  # True
 ```
-    
+
 ### CTR Mode (single chunk)
 
 Prefer chunk sizes up to ~1 MiB for large inputs: peak transient memory is
@@ -413,10 +432,10 @@ print(data == cbc_decrypted)  # True
 
 ## MTProto 2.0 boundary
 
-`tgcrypto` implements only the raw AES primitives MTProto 2.0 needs
-(`AES-256-IGE` for cloud chats, `AES-256-CTR` for CDN files, `AES-256-CBC`
-for Passport). The surrounding protocol — `msg_key` derivation
-(`SHA256(authKey[88+x:88+x+32] || plaintext)[8:24]`, `x=0`/`x=8`), KDF into
+`tgcrypto` implements only the raw AES primitives MTProto 2.0 needs (`AES-256-IGE` for cloud chats, `AES-256-CTR` for
+CDN files, `AES-256-CBC`
+for Passport). The surrounding protocol — `msg_key` derivation (`SHA256(authKey[88+x:88+x+32] || plaintext)[8:24]`,
+`x=0`/`x=8`), KDF into
 `aes_key`/`aes_iv`, padding `12..1024` bytes, `msg_id`/`seqno` checks,
 RSA/DH handshake, SRP 2FA — belongs in the client layer (e.g. Pyrogram or Kurigram),
 not here. `ige256_decrypt` does not verify `msg_key`; callers must.
@@ -425,23 +444,20 @@ not here. `ige256_decrypt` does not verify `msg_key`; callers must.
 
 ### What is the difference between `tgcrypto-c-lectr`, `tgcrypto` and `TgCryptoRust`?
 
-All three expose the same six functions under the `tgcrypto` import.
+Both `tgcrypto` and `TgCryptoRust` expose the same six functions under the `tgcrypto` import,
+while `tgcrypto-c-lectr` is under the 'tgcrypto_lectr' import. So it's fine to install `tgcrypto-c-lectr` with one of
+the other two in your project.
 `tgcrypto` (the original) is unmaintained and software-only. `tgcrypto-c-lectr` is
 this project: the same C implementation plus AES-NI acceleration, reusable
-streaming contexts, and current Python and platform support. It also changes the CTR counter to Little-Endian. `TgCryptoRust` is an independent Rust reimplementation.
-
-Install only one of them. They all provide the `tgcrypto` module, so having two
-installed at once gives a conflict:
-
-``` bash
-$ pip uninstall tgcrypto TgCryptoRust
-$ pip install tgcrypto-c-lectr
-```
+streaming contexts, and current Python and platform support. It also changes the CTR counter to Little-Endian.
+`TgCryptoRust` is an independent Rust reimplementation.
 
 ### Is it a drop-in replacement? Do I need to change my code?
 
 No code changes. The six original functions keep their names, argument order,
-return types and validation behaviour. For IGE and CBC modes, they produce bit-for-bit identical ciphertext. The CTR mode uses a Little-Endian counter (unlike the original Big-Endian implementation), so its output intentionally differs. Existing `import tgcrypto` statements keep working.
+return types and validation behaviour. For IGE and CBC modes, they produce bit-for-bit identical ciphertext. The CTR
+mode uses a Little-Endian counter (unlike the original Big-Endian implementation), so its output intentionally differs.
+Existing `import tgcrypto` statements keep working.
 
 ### Which Python versions are supported?
 
@@ -525,6 +541,7 @@ Open an issue at
 
 [LGPLv3+](COPYING.lesser) © 2017-present [Dan](https://github.com/delivrance)
 
-Maintained fork based on the original work by Dan (Pyrogram). Modifications in this fork are released under the same license.
+Maintained fork based on the original work by Dan (Pyrogram). Modifications in this fork are released under the same
+license.
 
 **Modifications in this fork:** Copyright © 2025-present [LittleNightSong](mailto:LittleNightSongYO@outlook.com)
